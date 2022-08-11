@@ -31,8 +31,8 @@ void exit_after_err_msg(char *msg) {
 int main(int agrc, char *agrv[]) {
     int sock_fd, new_sock_fd, port_num, cli_len;
     struct sockaddr_in serv_info, cli_info;
-    char buffer[BUFFER_SIZE];
-    ssize_t bytes_read;
+    char buffer[BUFFER_SIZE], response_buffer[BUFFER_SIZE * 2];
+    ssize_t bytes_read, bytes_written;
 
     port_num = agrc == 2 ? atoi(agrv[1]) : DEFAULT_PORT; // port number can be user defined or default
     /* 1.) create socket file descriptor */
@@ -55,8 +55,17 @@ int main(int agrc, char *agrv[]) {
     if (new_sock_fd == -1)
         exit_after_err_msg("Failed to connect. . .");
     /* at this point connection is established to the peer host and is ready for communication */
+    bzero(buffer, BUFFER_SIZE);
+    bzero(response_buffer, BUFFER_SIZE);
     bytes_read = read(new_sock_fd, &buffer, BUFFER_SIZE);
-    write(1, &buffer, bytes_read); write(1, "\n", 1);
+    bytes_written = sprintf(response_buffer, "echo from server: %s", buffer);
+    write(1, response_buffer, bytes_written);
+    bytes_written = write(new_sock_fd, response_buffer, bytes_written);
+    if (bytes_written < 0)
+        exit_after_err_msg("Failed to write to socket. . .");
+    close(new_sock_fd);
+    close(sock_fd);
+
     return 0;
 }
 
