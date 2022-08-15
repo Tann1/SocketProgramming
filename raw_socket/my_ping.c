@@ -7,23 +7,21 @@
 
 /* utility function(s) used primarily for testing purposes */
 static void print_IP_header_in_hex(IP_header* ip, size_t size);
+static uint16_t inet_checksum(uint16_t *header, uint32_t size_in_bytes);
 
 
 int main(int agrc, char *agrv[]) {
     IP_header ip = {0};
-
+    char data[] = {0xaa, 0x66, 0xc3, 0xf0};
     bzero((void *) &ip, sizeof(ip));
 
-    ip.ver = 0x09;
-    ip.len = 0x05;
-    ip.tos = 0x00;
-    ip.total_len = 95;
-    ip.ID = 0x1234;
-    ip.flags = 0;
-    ip.offset = 0x78;
-    ip.TTL = 0x22;
+    uint16_t *data_word = (uint16_t *)data;
 
-    print_IP_header_in_hex(&ip, sizeof(ip));
+    printf("0x%x\n", *data_word);
+    printf("0x%x\n", *(data_word + 1));
+    printf("0x%x\n", inet_checksum((uint16_t *)data, sizeof(data)));
+
+    //print_IP_header_in_hex(&ip, sizeof(ip));
     return 0;
 }
 
@@ -38,4 +36,24 @@ static void print_IP_header_in_hex(IP_header* ip, size_t size) {
         word_addr++;
         walker++;
     } while (walker < BOUNDARY);   
+}
+
+
+static uint16_t inet_checksum(uint16_t *header, uint32_t size_in_bytes) {
+    uint32_t result = 0, walker = 0, carry = 0;
+    const uint32_t BOUNDARY = size_in_bytes / sizeof(uint16_t); // make it half-word oriented boundary 
+    const uint32_t carry_mask = 0xff0000;
+
+    while (walker < BOUNDARY) {
+        if (carry_mask && result) { // meaning there is a carry
+            carry = 1;
+            result = result & (~carry_mask); // clear the carry
+        }
+        result += *(header + walker) + carry;
+        if (carry) // reset carry
+            carry = 0;
+        walker++;
+    }
+
+    return ~result;
 }
