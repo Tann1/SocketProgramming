@@ -7,8 +7,8 @@
 #define IP__MF 0x2              // more fragments
 
 typedef struct {
-    uint8_t ver : 4;            // len (header only length) 4:7 and ver 0 : 3
-    uint8_t len : 4;
+    uint8_t ver : 4;            // version (almost always 4)
+    uint8_t len : 4;            // len of header
     uint8_t tos;                // tos = type of service
     uint16_t total_len;         // total length header + payload
     uint16_t ID;                // Identifier
