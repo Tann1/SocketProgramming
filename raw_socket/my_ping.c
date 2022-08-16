@@ -52,6 +52,10 @@ int main(int agrc, char *agrv[]) {
     printf("read: %u bytes.\n", n_bytes);
     print_echo_request((Echo_Ping *)buffer, n_bytes);
     print_IP_header_in_hex((IP_header *)buffer, IP_SIZE);
+    ip__to_host_byte_order((IP_header *) buffer, IP_SIZE);
+    printf("----------------------------\n");
+    print_echo_request((Echo_Ping *)buffer, n_bytes);
+    print_IP_header_in_hex((IP_header *)buffer, IP_SIZE);
     close(sock_fd);
     return 0;
 }
@@ -65,9 +69,10 @@ static void print_echo_request(Echo_Ping *echo_data, size_t size) {
 
 }
 static void print_ip_header(IP_header *ip) {
-    struct in_addr src, dst;
-    src.s_addr = ip->src_ip_addr;
-    dst.s_addr = ip->dst_ip_addr;
+    char* src = ip_deci_format(ip->src_ip_addr);
+    char* dst = ip_deci_format(ip->dst_ip_addr);
+    uint16_t valid_checksum = inet_validate_checksum((uint16_t *)ip, IP_SIZE, ip->checksum);
+    char* valid_prompt = valid_checksum ? "Not Valid" : "Valid";
 
     printf("IP Header\n");
     printf("Version: %u\n"
@@ -75,15 +80,16 @@ static void print_ip_header(IP_header *ip) {
            "Type of Serivce: 0x%x\n"
            "Total Length: %u\n"
            "Identifier: 0x%x\n"
-           "Flags: 0x%x\n"
-           "Offset: %u\n"
+           "Offset: 0x%x\n"
            "TTL: %u\n"
            "Protocol: %u\n"
-           "Checksum: 0x%x\n"
+           "Checksum: 0x%x (%s)\n"
            "Source IP: %s\n"
            "Destination IP: %s\n",
            ip->ver, ip->len, ip->tos,
-           ip->total_len, ip->ID, ip->flags,
+           ip->total_len, ip->ID,
            ip->offset, ip->TTL, ip->proto,
-           ip->checksum, inet_ntoa(src), inet_ntoa(dst));
+           ip->checksum, valid_prompt, src, dst);
+    free(src);
+    free(dst);
 }
