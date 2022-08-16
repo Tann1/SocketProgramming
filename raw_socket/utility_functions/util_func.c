@@ -15,7 +15,7 @@
 uint16_t wrap_around_sum(uint16_t *start, uint32_t size_in_bytes) {
     if (start == NULL)
         return 0;
-        
+
     uint32_t result = 0, walker = 0, carry = 0;
     const uint32_t BOUNDARY = size_in_bytes / sizeof(uint16_t); // make it half-word oriented boundary 
     const uint32_t carry_mask = 0xff0000; // lower 16 bits are part of the sum so ignore them 
@@ -91,4 +91,10 @@ void to_net_byte_order(void *addr, uint32_t size) {
         *(word + walker) = htonl(*(word + walker));
         walker++;
     }
+}
+
+
+void exit_after_err_msg(char* err_msg) {
+    perror(err_msg);
+    exit(1);
 }
