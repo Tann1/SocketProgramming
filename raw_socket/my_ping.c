@@ -28,18 +28,18 @@ int main(int agrc, char *agrv[]) {
     /* create raw socket */
     sock_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (sock_fd == -1)
-        exit_after_err_msg("Failed to create raw socket. . .");
+        exit_after_err_msg("Failed to create raw socket");
     /* bind raw socket to interface */
     bzero((void *)&my_socket, sizeof(my_socket));
     my_socket.sin_family = AF_INET;
-    my_socket.sin_addr.s_addr = htonl(inet_addr(IP_ADDR));
+    my_socket.sin_addr.s_addr = inet_addr(IP_ADDR);
     my_socket.sin_port = 0x0;
 
     if (bind(sock_fd, (const struct sockaddr *) &my_socket, sizeof(my_socket)) == -1)
-        exit_after_err_msg("Failed to bind to interface. . .");
+        exit_after_err_msg("Failed to bind to interface");
     /* ready to recieve information */ 
     if ((n_bytes = recvfrom(sock_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&peer_socket, &peer_size)) == -1)
-        exit_after_err_msg("Failed to populate buffer. . .");
+        exit_after_err_msg("Failed to populate buffer");
     
     printf("read: %u bytes.\n", n_bytes);
     close(sock_fd);
