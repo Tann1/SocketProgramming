@@ -15,7 +15,7 @@
 #include "util_func.h"
 
 
-#define BUFFER_SIZE 4096
+#define BUFFER_SIZE 512
 #define IP_ADDR "192.168.10.103"
 
 typedef struct {
@@ -23,12 +23,12 @@ typedef struct {
     ICMP_echo icmp;
 } Echo_Ping; 
 
-static void print_echo_request(uint8_t *buffer, size_t size);
+static void print_echo_request(Echo_Ping *echo_data, size_t size);
 static void print_ip_header(IP_header *ip);
 
 int main(int agrc, char *agrv[]) {
     uint8_t buffer[BUFFER_SIZE];
-    int sock_fd, n_bytes;
+    int sock_fd, n_bytes = 0;
     struct sockaddr_in my_socket, peer_socket;
     int peer_size = sizeof(peer_socket);
 
@@ -50,19 +50,18 @@ int main(int agrc, char *agrv[]) {
         exit_after_err_msg("Failed to populate buffer");
     
     printf("read: %u bytes.\n", n_bytes);
-    print_echo_request(buffer, n_bytes);
+    print_echo_request((Echo_Ping *)buffer, n_bytes);
     print_IP_header_in_hex((IP_header *)buffer, IP_SIZE);
     close(sock_fd);
     return 0;
 }
 
 
-static void print_echo_request(uint8_t *buffer, size_t size) {
-    Echo_Ping *echo_data = malloc(sizeof(Echo_Ping)); 
-    bzero(echo_data, sizeof(echo_data));
-    echo_data = (Echo_Ping *)buffer;
+static void print_echo_request(Echo_Ping *echo_data, size_t size) {
+    if (size < sizeof(Echo_Ping))
+        return;
     print_ip_header(&echo_data->ip);
-    free(echo_data);
+   
 
 }
 static void print_ip_header(IP_header *ip) {
