@@ -51,6 +51,7 @@ int main(int agrc, char *agrv[]) {
     
     printf("read: %u bytes.\n", n_bytes);
     print_echo_request(buffer, n_bytes);
+    print_IP_header_in_hex((IP_header *)buffer, IP_SIZE);
     close(sock_fd);
     return 0;
 }
@@ -61,6 +62,7 @@ static void print_echo_request(uint8_t *buffer, size_t size) {
     bzero(echo_data, sizeof(echo_data));
     echo_data = (Echo_Ping *)buffer;
     print_ip_header(&echo_data->ip);
+    free(echo_data);
 
 }
 static void print_ip_header(IP_header *ip) {
