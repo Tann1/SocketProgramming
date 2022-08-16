@@ -5,6 +5,7 @@
 
 #define IP__DF 0x4              // don't fragment
 #define IP__MF 0x2              // more fragments
+#define IP_SIZE sizeof(IP_header)
 
 typedef struct {
     uint8_t ver : 4;            // version (almost always 4)
@@ -20,5 +21,6 @@ typedef struct {
     uint32_t src_ip_addr;
     uint32_t dst_ip_addr;
 }   IP_header;
+
 
 #endif
