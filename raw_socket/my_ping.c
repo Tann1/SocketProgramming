@@ -11,10 +11,12 @@
 /* personal includes */ 
 #include "IP_header.h"
 
-/* utility function(s) used primarily for testing purposes */
+/* utility function(s) used primarily for testing purposes along with helper functions */
 static void print_IP_header_in_hex(IP_header* ip, size_t size);
 static void populate_IP_header(IP_header* ip, uint8_t tos, uint16_t ID, uint16_t proto, uint32_t src_ip, uint32_t dst_ip);
-static uint16_t inet_checksum(uint16_t *header, uint32_t size_in_bytes);
+static uint16_t wrap_around_sum(uint16_t *start, uint32_t size_in_bytes);
+static inline uint16_t inet_checksum(uint16_t *header, uint32_t size_in_bytes);
+static inline uint16_t inet_validate_checksum(uint16_t *header, uint32_t size_in_bytes, uint16_t checksum);
 static void to_net_byte_order(void *addr, uint32_t size);
 
 int main(int agrc, char *agrv[]) {
@@ -52,6 +54,7 @@ static void print_IP_header_in_hex(IP_header* ip, size_t size) {
     uint32_t *word_addr = (uint32_t *) ip;
     uint32_t walker = 0;
     const uint32_t BOUNDARY = size / sizeof(uint32_t); // size would be 20 so 20 / word size
+    
     printf("BOUNDARY: %u\n",BOUNDARY);
     do {
         printf("%p: ", word_addr);
@@ -61,8 +64,7 @@ static void print_IP_header_in_hex(IP_header* ip, size_t size) {
     } while (walker < BOUNDARY);   
 }
 
-
-static uint16_t inet_checksum(uint16_t *header, uint32_t size_in_bytes) {
+static uint16_t wrap_around_sum(uint16_t *start, uint32_t size_in_bytes) {
     uint32_t result = 0, walker = 0, carry = 0;
     const uint32_t BOUNDARY = size_in_bytes / sizeof(uint16_t); // make it half-word oriented boundary 
     const uint32_t carry_mask = 0xff0000; // lower 16 bits are part of the sum so ignore them 
@@ -72,20 +74,29 @@ static uint16_t inet_checksum(uint16_t *header, uint32_t size_in_bytes) {
             carry = 1;
             result = result & (~carry_mask); // clear the carry
         }
-        result += *(header + walker) + carry;
+        result += *(start + walker) + carry;
         if (carry) // reset carry
             carry = 0;
         walker++;
     }
 
-    return ~result;
+    return result;
+}
+
+static inline uint16_t inet_checksum(uint16_t *header, uint32_t size_in_bytes) {
+    return ~wrap_around_sum(header, size_in_bytes);
+}
+
+
+static inline uint16_t inet_validate_checksum(uint16_t *header, uint32_t size_in_bytes, uint16_t checksum) {
+    return ~(wrap_around_sum(header, size_in_bytes) + checksum); // should return 0 if valid 
 }
 
 
 static void to_net_byte_order(void *addr, uint32_t size) {
     uint32_t *word = (uint32_t *)addr;
     uint32_t walker = 0;
-    const uint32_t BOUNDARY = size / sizeof(uint32_t);
+    const uint32_t BOUNDARY = size / sizeof(uint32_t); // word oriented boundary
 
     while (walker < BOUNDARY) {
         *(word + walker) = htonl(*(word + walker));
