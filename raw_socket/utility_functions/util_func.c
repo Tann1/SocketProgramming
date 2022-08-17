@@ -87,17 +87,6 @@ void ip__to_host_byte_order(IP_header *addr, uint32_t size) {
     addr->dst_ip_addr = ntohl(addr->dst_ip_addr);
 }
 
-char* ip_deci_format(uint32_t ip_addr) {
-    uint32_t mask = 0xff;
-    uint8_t octet[4] = {0};
-    char *octet_str = malloc(sizeof(char) * 16);
-
-    for (int idx = 0; idx < 4; idx++) 
-        octet[idx] = (ip_addr >> (idx * 8)) & mask;
-    sprintf(octet_str, "%u.%u.%u.%u", octet[3], octet[2], octet[1], octet[0]);
-    
-    return octet_str;
-}
 
 void exit_after_err_msg(char* err_msg) {
     perror(err_msg);

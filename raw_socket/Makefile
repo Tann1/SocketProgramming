@@ -1,7 +1,7 @@
 MAIN=my_ping.c
 INET_INCLUDES=./stack_headers/
 UTIL_INCLUDES=./utility_functions/
-UTIL_FILE=./utility_functions/util_func.c 
+UTIL_FILE=./utility_functions/*.c 
 OUTFILE=my_ping
 
 

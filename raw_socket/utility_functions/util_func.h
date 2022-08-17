@@ -13,7 +13,6 @@ uint16_t inet_validate_checksum(uint16_t *header, uint32_t size_in_bytes, uint16
 void populate_IP_header(IP_header* ip, uint8_t tos, uint16_t ID, uint16_t proto, uint32_t src_ip, uint32_t dst_ip);
 void print_IP_header_in_hex(IP_header* ip, size_t size);
 void ip__to_host_byte_order(IP_header *addr, uint32_t size);
-char* ip_deci_format(uint32_t ip_addr);
 void exit_after_err_msg(char* err_msg);
 
 #endif 
