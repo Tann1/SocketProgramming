@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unistd.h> // close()
 #include <string.h> // bzero() memset()
+#include <time.h>   // used for ICMP timestamp
 
 /* socket and internet API */
 #include <sys/socket.h>
@@ -27,6 +28,8 @@ typedef struct {
 
 static void print_echo_request(Echo_Ping *echo_data, size_t size);
 static void print_ip_header(IP_header *ip);
+static void print_icmp_echo_header(ICMP_echo *icmp_echo);
+static void print_payload_data(uint8_t *data, uint32_t size_in_bytes);
 
 int main(int agrc, char *agrv[]) {
     uint32_t buffer[BUFFER_SIZE];
@@ -62,10 +65,18 @@ int main(int agrc, char *agrv[]) {
 
 
 static void print_echo_request(Echo_Ping *echo_data, size_t size) {
-    if (size < sizeof(Echo_Ping))
+    if (size < sizeof(Echo_Ping)) // somehow have an invalid size
         return;
+
+    uint8_t *payload_data = (uint8_t *)(echo_data + sizeof(Echo_Ping));
+    uint32_t size_of_payload = size - sizeof(Echo_Ping);
+
     print_ip_header(&echo_data->ip);
-   
+    printf("\n\n"); // space out the two headers
+    print_icmp_echo_header(&echo_data->icmp);
+    printf("\n\n");
+    print_payload_data(payload_data, size_of_payload);
+    printf("x-------------------------------x\n");
 
 }
 static void print_ip_header(IP_header *ip) {
@@ -100,4 +111,36 @@ static void print_ip_header(IP_header *ip) {
            checksum, valid_prompt, src, dst);
     free(src);
     free(dst);
+}
+
+
+static void print_icmp_echo_header(ICMP_echo *icmp_echo) {
+    struct tm *info = localtime((const time_t *)&icmp_echo->timestamp);
+    printf("ICMP Echo Header\n");
+    printf("Type: %u\n"
+           "Code: %u\n"
+           "Checksum (ICMP header + data): 0x%04x\n"
+           "Identifier: 0x%04x\n"
+           "Sequence #: 0x%04x\n"
+           "Timestamp: %s\n",
+           icmp_echo->icmp_header.type,
+           icmp_echo->icmp_header.code,
+           ntohs(icmp_echo->icmp_header.checksum),
+           icmp_echo->ID, icmp_echo->seq,
+           asctime(info));
+}
+
+
+static void print_payload_data(uint8_t *data, uint32_t size_in_bytes) {
+    uint32_t walker = 0;
+
+    printf("Data Portion (%u bytes)\n", size_in_bytes);
+    while (walker < size_in_bytes) {
+        if (walker != 0 && walker % 16 == 0) // 16 bytes per line
+            printf("\n");
+        printf("0x%02x ", *(data + walker));
+        walker++;
+    }
+    printf("\n");
+
 }
