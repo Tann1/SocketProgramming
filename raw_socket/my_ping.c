@@ -31,6 +31,11 @@ static void print_ip_header(IP_header *ip);
 static void print_icmp_echo_header(ICMP_echo *icmp_echo);
 static void print_payload_data(uint8_t *data, uint32_t size_in_bytes);
 
+/*
+    TODO
+    validate ICMP checksum (header + data)
+*/
+
 int main(int agrc, char *agrv[]) {
     uint32_t buffer[BUFFER_SIZE];
     int sock_fd, n_bytes = 0;
