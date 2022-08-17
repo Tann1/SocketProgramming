@@ -38,6 +38,7 @@ void print_echo_request(Echo_Ping *echo_data, size_t size) {
 }
 void print_ip_header(IP_header *ip) {
     #if PRINT_IP_MEMCONTENT // print the memory content before any modifcations
+    printf("Printing IP Memory Content.\n");
     print_IP_header_in_hex(ip, IP_SIZE);
     #endif 
 
