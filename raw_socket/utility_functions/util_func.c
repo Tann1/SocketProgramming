@@ -11,26 +11,25 @@
 
 /* private helper function(s) definition */
 
-uint16_t wrap_around_sum(uint16_t *start, uint32_t size_in_bytes) {
+static uint16_t wrap_around_sum(uint16_t *start, uint32_t size_in_bytes) {
     if (start == NULL)
         return 0;
 
-    uint32_t result = 0, walker = 0, carry = 0;
+    uint32_t result = 0, walker = 0;
     const uint32_t BOUNDARY = size_in_bytes / sizeof(uint16_t); // make it half-word oriented boundary 
     const uint32_t carry_mask = 0xff0000; // lower 16 bits are part of the sum so ignore them 
 
     while (walker < BOUNDARY) {
-        if (carry_mask && result) { // meaning there is a carry
-            carry = 1;
-            result = result & (~carry_mask); // clear the carry
-        }
-        result += *(start + walker) + carry;
-        if (carry) // reset carry
-            carry = 0;
+        result += *(start + walker);
         walker++;
     }
-
-    return result;
+    
+    while (result & carry_mask) { // in case there're multiple carry progrations
+        result += ((result & carry_mask) >> 16);
+        result = result & ~carry_mask; // clear the carry
+    }
+    
+    return (uint16_t) result;
 }
 
 /* public helper function(s) definition */ 
