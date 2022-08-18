@@ -9,69 +9,81 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <linux/if_packet.h> 
+#include <net/ethernet.h>  // L2 protocols 
+#include <net/if.h>        // needed for struct ifreq to find ifindex
+#include <sys/ioctl.h>
+
 
 /* personal includes */ 
+#include "Ether_header.h"
 #include "IP_header.h"
 #include "ICMP_header.h"
 #include "util_func.h"
 #include "util_packet_info.h" // it's a packet sniffer to display the content
 
 #define BUFFER_SIZE 512
-#define IP_ADDR "192.168.10.103" // default IP that has been mannual configured
+#define IP_ADDR "192.168.10.104" // default IP that has been mannual configured
+#define INTERFACE "enp132s0f0"     // default interface 
 
 static void icmp_format_reply_header(ICMP_echo *icmp_header, uint32_t size_of_icmp_packet);
 static void ip_format_reply_header(IP_header *ip_header, uint32_t size_of_ip_header);
 
 int main(int argc, char *agrv[]) {
     uint32_t buffer[BUFFER_SIZE];
-    char *binding_addr = IP_ADDR;
+    char *if_name = INTERFACE; 
     int sock_fd, n_bytes = 0;
-    struct sockaddr_in my_socket, peer_socket;
+    struct sockaddr_ll my_socket, peer_socket;
     int peer_size = sizeof(peer_socket);
     Echo_Ping *echo_packet = NULL; // holds the header for ip and icmp_echo format
-
-    /* let the user change addr through command argument else just use default IP that has already been set */
+    
+    /* let the user change interface through command argument else just use default interface that has already been set */
     if (argc == 2)
-        binding_addr = agrv[1];
+        if_name = agrv[1];
 
-    if (inet_addr(binding_addr) == INADDR_NONE)
-        exit_after_err_msg("invalid IP address");
-    /* create raw socket */
-    sock_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+    /* create raw socket (this will include L2) */
+    sock_fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_IP));
     if (sock_fd == -1)
         exit_after_err_msg("Failed to create raw socket");
-    /* let raw socket know that we intend to write IP packets into it as well (naturally only expects ICMP) */
-    const int on = 1;
-    setsockopt(sock_fd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)); 
     /* bind raw socket to interface */
-    bzero((void *)&my_socket, sizeof(my_socket));
-    my_socket.sin_family = AF_INET;
-    my_socket.sin_addr.s_addr = inet_addr(binding_addr);
-    my_socket.sin_port = 0x0;
+    struct ifreq ifr;
+    bzero(&ifr, sizeof(ifr));
+    strncpy((char *)&ifr.ifr_name, if_name, sizeof(ifr.ifr_name));
+    if (ioctl(sock_fd, SIOCGIFINDEX, &ifr) == -1)
+        exit_after_err_msg("Failed to retrieve interface index");
+    /* if here means we've successfully got the ifindex and are ready to bind */
+    bzero(&my_socket, sizeof(my_socket));
+    my_socket.sll_family = AF_PACKET;
+    my_socket.sll_protocol = htons(ETH_P_IP);
+    my_socket.sll_ifindex = ifr.ifr_ifindex;
+ 
 
     if (bind(sock_fd, (const struct sockaddr *) &my_socket, sizeof(my_socket)) == -1)
         exit_after_err_msg("Failed to bind to interface");
     /* ready to recieve information */ 
-    while (1) {
+    //while (1) {
     bzero((void *)buffer, BUFFER_SIZE);
     if ((n_bytes = recvfrom(sock_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&peer_socket, &peer_size)) == -1)
         exit_after_err_msg("Failed to populate buffer");
     echo_packet = (Echo_Ping *)buffer;
 
+    printf("Read %u bytes.\n", n_bytes);
+    print_mem_content((void *)buffer, n_bytes);
     /* Format both IP and ICMP with echo reply packet (also uncomment the follow commented lines to see more details) */
-    //printf("IP and ICMP Request Packet Format\n");
+    printf("IP and ICMP Request Packet Format\n");
+    print_ip_header(&echo_packet->ip);
     //print_echo_request(echo_packet, n_bytes); 
 
-    icmp_format_reply_header(&echo_packet->icmp, n_bytes - IP_SIZE);
-    ip_format_reply_header(&echo_packet->ip, IP_SIZE);
+    //icmp_format_reply_header(&echo_packet->icmp, n_bytes - IP_SIZE);
+    //ip_format_reply_header(&echo_packet->ip, IP_SIZE);
 
     //printf("IP and ICMP Reply Packet Format\n");
     //print_echo_request(echo_packet, n_bytes);
 
     /* send the echo reply packet */ 
-    sendto(sock_fd, echo_packet, n_bytes, 0, (const struct sockaddr *)&peer_socket, peer_size);
-    printf("Replied to %s\n", inet_ntoa(peer_socket.sin_addr));
-    }
+    //sendto(sock_fd, echo_packet, n_bytes, 0, (const struct sockaddr *)&peer_socket, peer_size);
+    //printf("Replied to %s\n", inet_ntoa(peer_socket.sin_addr));
+    //}
     close(sock_fd); 
 
     return 0;

@@ -7,7 +7,7 @@
 #define IP__MF 0x2              // more fragments
 #define IP_SIZE sizeof(IP_header)
 
-typedef struct {
+typedef struct __attribute__((__packed__)){
     uint8_t len : 4;            // len of header
     uint8_t ver : 4;            // version (almost always 4)
     uint8_t tos;                // tos = type of service

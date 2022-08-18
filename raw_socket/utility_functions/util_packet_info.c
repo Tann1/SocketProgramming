@@ -2,13 +2,28 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include <arpa/inet.h>
 
 #include "util_packet_info.h"
 #include "util_func.h"
 
-char* ip_deci_format(uint32_t ip_addr) {
+
+
+static char* ether_mac_format(uint8_t *mac_addr) {
+    char* mac_format_str = malloc(sizeof(uint8_t) * 18);
+    
+    bzero(mac_format_str, 18);
+    sprintf(mac_format_str, "%x:%x:%x:%x:%x:%x", mac_addr[0], mac_addr[1], mac_addr[2],
+                                                 mac_addr[3], mac_addr[4], mac_addr[5]);
+
+    return mac_format_str;
+}
+
+
+
+static char* ip_deci_format(uint32_t ip_addr) {
     uint32_t mask = 0xff;
     uint8_t octet[4] = {0};
     char *octet_str = malloc(sizeof(char) * 16);
@@ -36,6 +51,24 @@ void print_echo_request(Echo_Ping *echo_data, size_t size) {
     printf("x-------------------------------x\n");
 
 }
+
+
+void print_ether_header(Ether_header *ether) {
+    char *dst_mac = NULL, *src_mac = NULL;
+    dst_mac = ether_mac_format(ether->dst_mac);
+    src_mac = ether_mac_format(ether->src_mac);
+    printf("Ether Header\n");
+    printf("Dst Mac Address: %s"
+           "Src Mac Address: %s"
+           "Type: 0x%04x\n",
+           dst_mac, src_mac,
+           ntohs(ether->type));
+
+    free(dst_mac);
+    free(src_mac);
+}
+
+
 void print_ip_header(IP_header *ip) {
     #if PRINT_IP_MEMCONTENT // print the memory content before any modifcations
     printf("Printing IP Memory Content.\n");
@@ -107,5 +140,18 @@ void print_payload_data(uint8_t *data, uint32_t size_in_bytes) {
         walker++;
     }
     printf("\n");
+
+}
+
+
+void print_mem_content(void *addr, uint32_t len) {
+    if (addr == NULL)
+        return;
+    uint32_t *word_addr = (uint32_t *)addr;
+    uint32_t walker = 0;
+    const uint32_t BOUNDARY = len / sizeof(uint32_t);
+
+    while (walker < BOUNDARY)
+        printf("%p: 0x%08x\n", word_addr + walker, *(word_addr + walker++));
 
 }
