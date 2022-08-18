@@ -43,6 +43,8 @@ void print_echo_request(Echo_Ping *echo_data, size_t size) {
     uint32_t size_of_payload = size - sizeof(Echo_Ping);
 
     printf("read: %lu bytes.\n", size);
+    print_ether_header(&echo_data->ether);
+    printf("\n\n");
     print_ip_header(&echo_data->ip);
     printf("\n\n"); // space out the two headers
     print_icmp_echo_header(&echo_data->icmp, size);
@@ -58,8 +60,8 @@ void print_ether_header(Ether_header *ether) {
     dst_mac = ether_mac_format(ether->dst_mac);
     src_mac = ether_mac_format(ether->src_mac);
     printf("Ether Header\n");
-    printf("Dst Mac Address: %s"
-           "Src Mac Address: %s"
+    printf("Dst Mac Address: %s\n"
+           "Src Mac Address: %s\n"
            "Type: 0x%04x\n",
            dst_mac, src_mac,
            ntohs(ether->type));

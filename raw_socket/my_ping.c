@@ -28,6 +28,9 @@
 
 static void icmp_format_reply_header(ICMP_echo *icmp_header, uint32_t size_of_icmp_packet);
 static void ip_format_reply_header(IP_header *ip_header, uint32_t size_of_ip_header);
+static void ether_format_reply_header(Ether_header *ether_header);
+
+static void format_reply(Echo_Ping *frame, uint32_t size_of_frame_in_bytes);
 
 int main(int argc, char *agrv[]) {
     uint32_t buffer[BUFFER_SIZE];
@@ -61,29 +64,24 @@ int main(int argc, char *agrv[]) {
     if (bind(sock_fd, (const struct sockaddr *) &my_socket, sizeof(my_socket)) == -1)
         exit_after_err_msg("Failed to bind to interface");
     /* ready to recieve information */ 
-    //while (1) {
+    while (1) {
     bzero((void *)buffer, BUFFER_SIZE);
     if ((n_bytes = recvfrom(sock_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&peer_socket, &peer_size)) == -1)
         exit_after_err_msg("Failed to populate buffer");
     echo_packet = (Echo_Ping *)buffer;
 
-    printf("Read %u bytes.\n", n_bytes);
-    print_mem_content((void *)buffer, n_bytes);
+    
     /* Format both IP and ICMP with echo reply packet (also uncomment the follow commented lines to see more details) */
-    printf("IP and ICMP Request Packet Format\n");
-    print_ip_header(&echo_packet->ip);
+    //printf("IP and ICMP Request Packet Format\n");    
     //print_echo_request(echo_packet, n_bytes); 
-
-    //icmp_format_reply_header(&echo_packet->icmp, n_bytes - IP_SIZE);
-    //ip_format_reply_header(&echo_packet->ip, IP_SIZE);
-
+    format_reply(echo_packet, n_bytes);
     //printf("IP and ICMP Reply Packet Format\n");
     //print_echo_request(echo_packet, n_bytes);
 
     /* send the echo reply packet */ 
-    //sendto(sock_fd, echo_packet, n_bytes, 0, (const struct sockaddr *)&peer_socket, peer_size);
-    //printf("Replied to %s\n", inet_ntoa(peer_socket.sin_addr));
-    //}
+    sendto(sock_fd, echo_packet, n_bytes, 0, (const struct sockaddr *)&peer_socket, peer_size);
+    printf("reply sent.\n");
+    }
     close(sock_fd); 
 
     return 0;
@@ -111,4 +109,20 @@ static void ip_format_reply_header(IP_header *ip_header, uint32_t size_of_ip_hea
     ip_header->dst_ip_addr = new_dst_addr;
     ip_header->checksum = 0;
     ip_header->checksum = inet_checksum((uint16_t *)ip_header, size_of_ip_header);
+}
+static void ether_format_reply_header(Ether_header *ether_header) {
+    if (ether_header == NULL)
+        return;
+    
+    uint8_t new_dst_mac[6];
+    memcpy(new_dst_mac, ether_header->src_mac, 6);
+    memcpy(ether_header->src_mac, ether_header->dst_mac, 6);
+    memcpy(ether_header->dst_mac, new_dst_mac, 6);
+}
+static void format_reply(Echo_Ping *frame, uint32_t size_of_frame_in_bytes) {
+    if (frame == NULL)
+        return;
+    ether_format_reply_header(&frame->ether);
+    ip_format_reply_header(&frame->ip, IP_SIZE);
+    icmp_format_reply_header(&frame->icmp, size_of_frame_in_bytes - ETHER_SIZE - IP_SIZE);
 }

@@ -13,7 +13,7 @@ typedef struct __attribute__((__packed__)){
 } Echo_Ping;
 
 
-#define PRINT_IP_MEMCONTENT 1 // flag to print memory content of ip (mainly for debugging purposes)
+#define PRINT_IP_MEMCONTENT 0 // flag to print memory content of ip (mainly for debugging purposes)
 
 static char* ether_mac_format(uint8_t *mac_addr);
 static char* ip_deci_format(uint32_t ip_addr);
