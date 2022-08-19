@@ -76,7 +76,7 @@ int main(int argc, char *agrv[]) {
 
     
     /* Format both IP and ICMP with echo reply packet (also uncomment the follow commented lines to see more details) */
-    //print_mem_content(buffer, n_bytes);
+    print_mem_content(buffer, n_bytes);
     printf("IP and ICMP Request Packet Format\n");    
     print_echo_request(echo_packet, n_bytes);
     offset = ntohs(echo_packet->ip.offset); 

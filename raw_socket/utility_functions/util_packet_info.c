@@ -39,17 +39,17 @@ void print_echo_request(Echo_Ping *echo_data, size_t size) {
     if (size < sizeof(Echo_Ping)) // somehow have an invalid size
         return;
 
-    uint8_t *payload_data = ((uint8_t *)echo_data) + sizeof(Echo_Ping);
-    uint32_t size_of_payload = size - sizeof(Echo_Ping);
-    printf("Payload start: %p data start: %p\n", echo_data, payload_data);
+    uint8_t *payload_data = ((uint8_t *)echo_data) + ETHER_SIZE + IP_SIZE;
+    uint32_t size_of_payload = ntohs(echo_data->ip.total_len) - IP_SIZE;
+    printf("Payload start: %p data start: %p data end:%p\n", echo_data, payload_data, payload_data + size_of_payload);
 
     printf("read: %lu bytes.\n", size);
     print_ether_header(&echo_data->ether);
     printf("\n\n");
     print_ip_header(&echo_data->ip);
     printf("\n\n"); // space out the two headers
-    print_icmp_echo_header(&echo_data->icmp, size);
-    printf("\n\n");
+    //print_icmp_echo_header(&echo_data->icmp, size);
+    //printf("\n\n");
     print_payload_data(payload_data, size_of_payload);
     printf("x-------------------------------x\n");
 
