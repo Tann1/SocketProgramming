@@ -39,8 +39,9 @@ void print_echo_request(Echo_Ping *echo_data, size_t size) {
     if (size < sizeof(Echo_Ping)) // somehow have an invalid size
         return;
 
-    uint8_t *payload_data = (uint8_t *)(echo_data + sizeof(Echo_Ping));
+    uint8_t *payload_data = ((uint8_t *)echo_data) + sizeof(Echo_Ping);
     uint32_t size_of_payload = size - sizeof(Echo_Ping);
+    printf("Payload start: %p data start: %p\n", echo_data, payload_data);
 
     printf("read: %lu bytes.\n", size);
     print_ether_header(&echo_data->ether);
@@ -99,7 +100,7 @@ void print_ip_header(IP_header *ip) {
            "Source IP: %s\n"
            "Destination IP: %s\n",
            ip->ver, ip->len, ip->tos,
-           ntohs(ip->total_len), ip->ID,
+           ntohs(ip->total_len), ntohs(ip->ID),
            ntohs(ip->offset), ip->TTL, ip->proto,
            checksum, valid_prompt, src, dst);
     free(src);
@@ -108,7 +109,7 @@ void print_ip_header(IP_header *ip) {
 
 
 void print_icmp_echo_header(ICMP_echo *icmp_echo, uint32_t total_size_of_payload) {
-    struct tm *info = localtime((const time_t *)&icmp_echo->timestamp);
+
     uint16_t checksum = icmp_echo->icmp_header.checksum; // extract the checksum
     icmp_echo->icmp_header.checksum = 0;
     uint16_t valid_checksum = inet_validate_checksum((uint16_t *)icmp_echo, total_size_of_payload - IP_SIZE, checksum);
@@ -121,13 +122,11 @@ void print_icmp_echo_header(ICMP_echo *icmp_echo, uint32_t total_size_of_payload
            "Code: %u\n"
            "Checksum (ICMP header + data): 0x%04x (%s)\n"
            "Identifier: 0x%04x\n"
-           "Sequence #: 0x%04x\n"
-           "Timestamp: %s\n",
+           "Sequence #: 0x%04x\n",
            icmp_echo->icmp_header.type,
            icmp_echo->icmp_header.code,
            ntohs(icmp_echo->icmp_header.checksum),
-           valid_prompt, icmp_echo->ID, icmp_echo->seq,
-           asctime(info));
+           valid_prompt, icmp_echo->ID, icmp_echo->seq);
 }
 
 
@@ -135,9 +134,10 @@ void print_payload_data(uint8_t *data, uint32_t size_in_bytes) {
     uint32_t walker = 0;
 
     printf("Data Portion (%u bytes)\n", size_in_bytes);
+    printf("%p: ", data);
     while (walker < size_in_bytes) {
         if (walker != 0 && walker % 16 == 0) // 16 bytes per line
-            printf("\n");
+            printf("\n%p: ", data + walker);
         printf("0x%02x ", *(data + walker));
         walker++;
     }

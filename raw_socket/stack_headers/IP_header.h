@@ -3,8 +3,10 @@
 
 #include <stdint.h>
 
-#define IP__DF 0x4              // don't fragment
-#define IP__MF 0x2              // more fragments
+#define IP__DF 0x4000              // don't fragment
+#define IP__MF 0x2000              // more fragments
+#define FLAG_MASK 0xE000;
+#define OFFSET_MASK ~FLAG_MASK;
 #define IP_SIZE sizeof(IP_header)
 
 typedef struct __attribute__((__packed__)){

@@ -14,7 +14,6 @@ typedef struct __attribute__((__packed__)){
     ICMP_header icmp_header;
     uint16_t ID;
     uint16_t seq;
-    uint32_t timestamp;
 } ICMP_echo; 
 
 #endif

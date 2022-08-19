@@ -31,14 +31,17 @@ static void ip_format_reply_header(IP_header *ip_header, uint32_t size_of_ip_hea
 static void ether_format_reply_header(Ether_header *ether_header);
 
 static void format_reply(Echo_Ping *frame, uint32_t size_of_frame_in_bytes);
+static void format_fragment(void *buffer_dst, void *buffer_src, uint32_t src_size, uint16_t offset);
 
 int main(int argc, char *agrv[]) {
-    uint32_t buffer[BUFFER_SIZE];
+    uint8_t buffer[BUFFER_SIZE], alt_buffer[BUFFER_SIZE]; // alt_buffer will be needed if there're fragments
     char *if_name = INTERFACE; 
     int sock_fd, n_bytes = 0;
     struct sockaddr_ll my_socket, peer_socket;
     int peer_size = sizeof(peer_socket);
     Echo_Ping *echo_packet = NULL; // holds the header for ip and icmp_echo format
+    uint16_t flag, offset; // need these to check for possible fragmented packets
+    uint32_t src_size, total_size; // this also for fragmentation logic
     
     /* let the user change interface through command argument else just use default interface that has already been set */
     if (argc == 2)
@@ -63,7 +66,8 @@ int main(int argc, char *agrv[]) {
 
     if (bind(sock_fd, (const struct sockaddr *) &my_socket, sizeof(my_socket)) == -1)
         exit_after_err_msg("Failed to bind to interface");
-    /* ready to recieve information */ 
+    /* ready to recieve information */
+    bzero((void *)alt_buffer, BUFFER_SIZE); 
     while (1) {
     bzero((void *)buffer, BUFFER_SIZE);
     if ((n_bytes = recvfrom(sock_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&peer_socket, &peer_size)) == -1)
@@ -72,15 +76,32 @@ int main(int argc, char *agrv[]) {
 
     
     /* Format both IP and ICMP with echo reply packet (also uncomment the follow commented lines to see more details) */
-    //printf("IP and ICMP Request Packet Format\n");    
-    //print_echo_request(echo_packet, n_bytes); 
-    format_reply(echo_packet, n_bytes);
-    //printf("IP and ICMP Reply Packet Format\n");
-    //print_echo_request(echo_packet, n_bytes);
-
-    /* send the echo reply packet */ 
-    sendto(sock_fd, echo_packet, n_bytes, 0, (const struct sockaddr *)&peer_socket, peer_size);
-    printf("reply sent.\n");
+    //print_mem_content(buffer, n_bytes);
+    printf("IP and ICMP Request Packet Format\n");    
+    print_echo_request(echo_packet, n_bytes);
+    offset = ntohs(echo_packet->ip.offset); 
+    flag = offset & FLAG_MASK; // this will extract the flags within the offset
+    offset = offset & OFFSET_MASK; // this will extract the offset and leave out the mask
+    if ((flag == IP__DF || flag == 0x0) && offset == 0) { // this means we have a full packet so just format and send it
+        format_reply(echo_packet, n_bytes);
+        /* send the echo reply packet */ 
+        sendto(sock_fd, echo_packet, n_bytes, 0, (const struct sockaddr *)&peer_socket, peer_size);
+        //printf("IP and ICMP Reply Packet Format\n");
+        //print_echo_request(echo_packet, n_bytes);
+        printf("reply sent.\n");
+        continue;
+    }  
+    /* if here means we have a fragment */
+    printf("Have a fragment packet.\n");
+    src_size = ETHER_SIZE + ntohs(echo_packet->ip.total_len);
+    total_size += src_size;
+    memcpy(alt_buffer, buffer, ETHER_SIZE);
+    memcpy(alt_buffer + ETHER_SIZE, buffer + ETHER_SIZE, IP_SIZE);
+    format_fragment(alt_buffer, buffer, src_size, offset);
+    if (flag == 0x0) { // means last fragment (assuming things are in order for simpilicity)
+        //print_echo_request((Echo_Ping *)alt_buffer, total_size);
+        bzero(alt_buffer, BUFFER_SIZE);
+    }
     }
     close(sock_fd); 
 
@@ -125,4 +146,13 @@ static void format_reply(Echo_Ping *frame, uint32_t size_of_frame_in_bytes) {
     ether_format_reply_header(&frame->ether);
     ip_format_reply_header(&frame->ip, IP_SIZE);
     icmp_format_reply_header(&frame->icmp, size_of_frame_in_bytes - ETHER_SIZE - IP_SIZE);
+}
+
+
+static void format_fragment(void *buffer_dst, void *buffer_src, uint32_t src_size, uint16_t offset) {
+    if (buffer_dst == NULL || buffer_src == NULL)
+        return;
+    uint32_t offset_in_bytes = offset * 8; // IP describes offset in 2 words units
+    uint32_t header_offset = ETHER_SIZE + IP_SIZE;
+    memcpy(buffer_dst + header_offset + offset, buffer_src + header_offset, src_size - header_offset);
 }
