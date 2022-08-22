@@ -33,6 +33,13 @@ static void ether_format_reply_header(Ether_header *ether_header);
 static void format_reply(Echo_Ping *frame, uint32_t size_of_frame_in_bytes);
 static void format_fragment(uint8_t *buffer_dst, uint8_t *buffer_src, uint16_t start, uint16_t len);
 
+/* 
+    There're several commented functions in main especially within the while loop. The purpose of these
+    functions are mainly for debugging and knowledge. They may not directly play a role in the given exercise
+    but are rather useful for understanding how everything is working and happening. Just uncomment some of them
+    to see extra information.
+*/
+
 int main(int argc, char *agrv[]) {
     uint8_t buffer[BUFFER_SIZE], alt_buffer[BUFFER_SIZE]; // alt_buffer will be needed if there're fragments
     char *if_name = INTERFACE; 
@@ -81,18 +88,20 @@ int main(int argc, char *agrv[]) {
     //print_mem_content(buffer, n_bytes);
     //printf("IP and ICMP Request Packet Format\n");    
     //print_echo_request(echo_packet, n_bytes);
+
     offset = ntohs(echo_packet->ip.offset); 
     flag = offset & FLAG_MASK; // this will extract the flags within the offset
     offset = offset & OFFSET_MASK; // this will extract the offset and leave out the mask
-    //printf("flags: 0x%04x offset: %u\n", flag, offset * 8);
+
     if ((flag == IP__DF || flag == 0x0) && offset == 0) { // this means we have a full packet so just format and send it
         format_reply(echo_packet, ETHER_SIZE + ntohs(echo_packet->ip.total_len));
         /* send the echo reply packet */ 
         sendto(sock_fd, echo_packet, n_bytes, 0, (const struct sockaddr *)&peer_socket, peer_size);
+
         //printf("IP and ICMP Reply Packet Format\n");
         //print_echo_request(echo_packet, n_bytes);
         printf("reply sent. (No Fragment)\n");
-        continue;
+        continue; // ignore the rest of the code because that's for fragments only
     }  
     /* if here means we have a fragment */
     //printf("Have a fragment packet.\n");
