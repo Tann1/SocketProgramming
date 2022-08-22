@@ -41,7 +41,7 @@ void print_echo_request(Echo_Ping *echo_data, size_t size) {
 
     uint8_t *payload_data = ((uint8_t *)echo_data) + ETHER_SIZE + IP_SIZE;
     uint32_t size_of_payload = ntohs(echo_data->ip.total_len) - IP_SIZE;
-    printf("Payload start: %p data start: %p data end:%p\n", echo_data, payload_data, payload_data + size_of_payload);
+    //printf("Payload start: %p data start: %p data end:%p\n", echo_data, payload_data, payload_data + size_of_payload);
 
     printf("read: %lu bytes.\n", size);
     print_ether_header(&echo_data->ether);
@@ -92,7 +92,7 @@ void print_ip_header(IP_header *ip) {
            "Header Length: %u\n"
            "Type of Serivce: 0x%x\n"
            "Total Length: %u\n"
-           "Identifier: 0x%x\n"
+           "Identifier: 0x%04x\n"
            "Offset: 0x%04x\n"
            "TTL: %u\n"
            "Protocol: %u\n"
