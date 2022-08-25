@@ -49,7 +49,7 @@ int main(int argc, char *agrv[]) {
     Echo_Ping *echo_packet = NULL; // holds the header for ip and icmp_echo format
     uint16_t flag, offset; // need these to check for possible fragmented packets
     uint32_t total_size = 0, curr_total_size = 0, header_offset; // this also for fragmentation logic
-    
+    ICMP_header *icmp_header = NULL; // to check for icmp request package
     /* let the user change interface through command argument else just use default interface that has already been set */
     if (argc == 2)
         if_name = agrv[1];
@@ -81,7 +81,10 @@ int main(int argc, char *agrv[]) {
         if ((n_bytes = recvfrom(sock_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&peer_socket, &peer_size)) == -1)
             exit_after_err_msg("Failed to populate buffer");
         echo_packet = (Echo_Ping *)buffer;
-
+        
+        icmp_header = &echo_packet->icmp.icmp_header;
+        if (echo_packet->ip.proto != 1 || icmp_header->type != 8 || icmp_header->code != 0) // meaning it is not an icmp echo request packet
+            continue;
         
         /* Format both IP and ICMP with echo reply packet (also uncomment the follow commented lines to see more details) */
         //printf("buffer content\n");
