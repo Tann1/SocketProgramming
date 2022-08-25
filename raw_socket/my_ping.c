@@ -48,7 +48,7 @@ int main(int argc, char *agrv[]) {
     int peer_size = sizeof(peer_socket);
     Echo_Ping *echo_packet = NULL; // holds the header for ip and icmp_echo format
     uint16_t flag, offset; // need these to check for possible fragmented packets
-    uint32_t total_size, header_offset; // this also for fragmentation logic
+    uint32_t total_size = 0, curr_total_size = 0, header_offset; // this also for fragmentation logic
     
     /* let the user change interface through command argument else just use default interface that has already been set */
     if (argc == 2)
@@ -77,53 +77,59 @@ int main(int argc, char *agrv[]) {
     bzero((void *)alt_buffer, BUFFER_SIZE);
     total_size = 0;  
     while (1) {
-    bzero((void *)buffer, BUFFER_SIZE);
-    if ((n_bytes = recvfrom(sock_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&peer_socket, &peer_size)) == -1)
-        exit_after_err_msg("Failed to populate buffer");
-    echo_packet = (Echo_Ping *)buffer;
+        bzero((void *)buffer, BUFFER_SIZE);
+        if ((n_bytes = recvfrom(sock_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&peer_socket, &peer_size)) == -1)
+            exit_after_err_msg("Failed to populate buffer");
+        echo_packet = (Echo_Ping *)buffer;
 
-    
-    /* Format both IP and ICMP with echo reply packet (also uncomment the follow commented lines to see more details) */
-    //printf("buffer content\n");
-    //print_mem_content(buffer, n_bytes);
-    //printf("IP and ICMP Request Packet Format\n");    
-    //print_echo_request(echo_packet, n_bytes);
-
-    offset = ntohs(echo_packet->ip.offset); 
-    flag = offset & FLAG_MASK; // this will extract the flags within the offset
-    offset = offset & OFFSET_MASK; // this will extract the offset and leave out the mask
-
-    if ((flag == IP__DF || flag == 0x0) && offset == 0) { // this means we have a full packet so just format and send it
-        format_reply(echo_packet, ETHER_SIZE + ntohs(echo_packet->ip.total_len));
-        /* send the echo reply packet */ 
-        sendto(sock_fd, echo_packet, n_bytes, 0, (const struct sockaddr *)&peer_socket, peer_size);
-
-        //printf("IP and ICMP Reply Packet Format\n");
+        
+        /* Format both IP and ICMP with echo reply packet (also uncomment the follow commented lines to see more details) */
+        //printf("buffer content\n");
+        //print_mem_content(buffer, n_bytes);
+        //printf("IP and ICMP Request Packet Format\n");    
         //print_echo_request(echo_packet, n_bytes);
-        printf("reply sent. (No Fragment)\n");
-        continue; // ignore the rest of the code because that's for fragments only
-    }  
-    /* if here means we have a fragment */
-    //printf("Have a fragment packet.\n");
-    memcpy(alt_buffer, buffer, ETHER_SIZE);
-    memcpy(alt_buffer + ETHER_SIZE, buffer + ETHER_SIZE, IP_SIZE);
-    header_offset = ETHER_SIZE + IP_SIZE;
-    total_size += ntohs(echo_packet->ip.total_len) - IP_SIZE;
-    format_fragment(alt_buffer + header_offset, buffer + header_offset, offset * 8, ntohs(echo_packet->ip.total_len) - IP_SIZE);
-    //printf("alt buffer content\n");
-    //print_mem_content(alt_buffer, 14 + 128);
-    if (flag == 0x0) { // means last fragment (assuming things are in order for simpilicity)
-        total_size += ETHER_SIZE + IP_SIZE;
-        echo_packet = (Echo_Ping *)alt_buffer;
-        echo_packet->ip.total_len = htons(total_size - ETHER_SIZE);
-        echo_packet->ip.offset = 0x0;
-        format_reply(echo_packet, total_size);
-        //print_echo_request(echo_packet, total_size);
-        sendto(sock_fd, echo_packet, n_bytes, 0, (const struct sockaddr *)&peer_socket, peer_size);
-        printf("reply sent. (Fragment)\n");
-        bzero(alt_buffer, BUFFER_SIZE);
-        total_size = 0;
-    }
+
+        offset = ntohs(echo_packet->ip.offset); 
+        flag = offset & FLAG_MASK; // this will extract the flags within the offset
+        offset = offset & OFFSET_MASK; // this will extract the offset and leave out the mask
+
+        if ((flag == IP__DF || flag == 0x0) && offset == 0) { // this means we have a full packet so just format and send it
+            format_reply(echo_packet, ETHER_SIZE + ntohs(echo_packet->ip.total_len));
+            /* send the echo reply packet */ 
+            sendto(sock_fd, echo_packet, n_bytes, 0, (const struct sockaddr *)&peer_socket, peer_size);
+
+            //printf("IP and ICMP Reply Packet Format\n");
+            //print_echo_request(echo_packet, n_bytes);
+            printf("reply sent. (No Fragment)\n");
+            continue; // ignore the rest of the code because that's for fragments only
+        }  
+        /* if here means we have a fragment */
+        //printf("Have a fragment packet.\n");
+        memcpy(alt_buffer, buffer, ETHER_SIZE);
+        memcpy(alt_buffer + ETHER_SIZE, buffer + ETHER_SIZE, IP_SIZE);
+        header_offset = ETHER_SIZE + IP_SIZE;
+        curr_total_size += ntohs(echo_packet->ip.total_len) - IP_SIZE;
+        format_fragment(alt_buffer + header_offset, buffer + header_offset, offset * 8, ntohs(echo_packet->ip.total_len) - IP_SIZE);
+        //printf("alt buffer content\n");
+        //printf("curr_total_size: %u\n", curr_total_size);
+        //print_mem_content(alt_buffer, ETHER_SIZE + IP_SIZE + curr_total_size);
+
+        if (flag == 0x0) // important to handle out of order packets
+            total_size = (offset * 8) + ntohs(echo_packet->ip.total_len) - IP_SIZE;
+
+        if (total_size == curr_total_size) { // if it matches means we have completed the packet reassembly (handles out of order logic)
+            curr_total_size += ETHER_SIZE + IP_SIZE;
+            echo_packet = (Echo_Ping *)alt_buffer;
+            echo_packet->ip.total_len = htons(curr_total_size - ETHER_SIZE);
+            echo_packet->ip.offset = 0x0;
+            format_reply(echo_packet, curr_total_size);
+            //print_echo_request(echo_packet, total_size);
+            sendto(sock_fd, echo_packet, n_bytes, 0, (const struct sockaddr *)&peer_socket, peer_size);
+            printf("reply sent. (Fragment)\n");
+            bzero(alt_buffer, BUFFER_SIZE);
+            total_size = 0;
+            curr_total_size = 0;
+        }
     }
     close(sock_fd); 
 
